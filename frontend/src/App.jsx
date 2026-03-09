@@ -1,9 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Heart, ChevronRight, ArrowLeft, ChevronLeft, Key } from 'lucide-react';
 import ResultPage from './components/ResultPage';
 import { questions } from './data/questions';
 import { calculateResult } from './utils/calculator';
 import { saveAnswers, clearAllData } from './utils/storage';
+
+// 有效的邀请码列表
+const VALID_CODES = [
+  'ECHO2024',
+  'LOVE123',
+  'TEST001',
+  'VIP2024',
+  'WELCOME',
+  'SPRING2024',
+];
 
 function App() {
   const [step, setStep] = useState('landing'); // landing, invite, quiz, result
@@ -14,18 +24,31 @@ function App() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState('');
 
-  // 色彩方案
+  // 检查是否已验证
+  useEffect(() => {
+    const verified = localStorage.getItem('echo_love_verified');
+    if (verified === 'true') {
+      setStep('quiz');
+    }
+  }, []);
+
   const colors = {
     bg: '#FDF9F3',
     accent: '#7C9A92',
   };
 
   const handleStart = () => {
-    setStep('invite');
+    // 检查是否已验证
+    const verified = localStorage.getItem('echo_love_verified');
+    if (verified === 'true') {
+      setStep('quiz');
+    } else {
+      setStep('invite');
+    }
   };
 
-  // 验证邀请码
-  const handleVerifyCode = async () => {
+  // 验证邀请码（纯前端）
+  const handleVerifyCode = () => {
     if (!inviteCode.trim()) {
       setError('请输入邀请码');
       return;
@@ -34,35 +57,37 @@ function App() {
     setIsVerifying(true);
     setError('');
 
-    try {
-      const response = await fetch('/api/verify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ code: inviteCode }),
-      });
+    const code = inviteCode.toUpperCase().trim();
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        // 验证成功，开始测试
-        setCurrentQ(0);
-        setAnswers([]);
-        setResult(null);
-        setStep('quiz');
-      } else {
-        setError(data.error || '邀请码验证失败');
-      }
-    } catch (err) {
-      setError('网络错误，请稍后重试');
+    // 检查是否有效
+    if (!VALID_CODES.includes(code)) {
+      setError('邀请码无效');
+      setIsVerifying(false);
+      return;
     }
 
+    // 检查是否已使用
+    const usedCodes = JSON.parse(localStorage.getItem('echo_love_used_codes') || '[]');
+    if (usedCodes.includes(code)) {
+      setError('该邀请码已被使用');
+      setIsVerifying(false);
+      return;
+    }
+
+    // 标记为已使用
+    usedCodes.push(code);
+    localStorage.setItem('echo_love_used_codes', JSON.stringify(usedCodes));
+    localStorage.setItem('echo_love_verified', 'true');
+
+    // 验证成功，开始测试
+    setCurrentQ(0);
+    setAnswers([]);
+    setResult(null);
+    setStep('quiz');
     setIsVerifying(false);
   };
 
   const handleAnswer = (type) => {
-    // 更新当前题目的答案
     const newAnswers = [...answers];
     newAnswers[currentQ] = type;
     setAnswers(newAnswers);
@@ -71,7 +96,6 @@ function App() {
     if (currentQ < questions.length - 1) {
       setCurrentQ(currentQ + 1);
     } else {
-      // 计算结果
       const calcResult = calculateResult(newAnswers);
       setResult(calcResult);
       setStep('result');

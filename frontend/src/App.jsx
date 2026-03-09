@@ -47,8 +47,8 @@ function App() {
     }
   };
 
-  // 验证邀请码（纯前端）
-  const handleVerifyCode = () => {
+  // 验证邀请码（调用后端API）
+  const handleVerifyCode = async () => {
     if (!inviteCode.trim()) {
       setError('请输入邀请码');
       return;
@@ -59,32 +59,37 @@ function App() {
 
     const code = inviteCode.toUpperCase().trim();
 
-    // 检查是否有效
-    if (!VALID_CODES.includes(code)) {
-      setError('邀请码无效');
+    try {
+      const response = await fetch('/api/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ code }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || '验证失败');
+        setIsVerifying(false);
+        return;
+      }
+
+      // 验证成功，保存到 localStorage
+      localStorage.setItem('echo_love_verified', 'true');
+
+      // 开始测试
+      setCurrentQ(0);
+      setAnswers([]);
+      setResult(null);
+      setStep('quiz');
+    } catch (err) {
+      setError('网络错误，请稍后重试');
+      console.error(err);
+    } finally {
       setIsVerifying(false);
-      return;
     }
-
-    // 检查是否已使用
-    const usedCodes = JSON.parse(localStorage.getItem('echo_love_used_codes') || '[]');
-    if (usedCodes.includes(code)) {
-      setError('该邀请码已被使用');
-      setIsVerifying(false);
-      return;
-    }
-
-    // 标记为已使用
-    usedCodes.push(code);
-    localStorage.setItem('echo_love_used_codes', JSON.stringify(usedCodes));
-    localStorage.setItem('echo_love_verified', 'true');
-
-    // 验证成功，开始测试
-    setCurrentQ(0);
-    setAnswers([]);
-    setResult(null);
-    setStep('quiz');
-    setIsVerifying(false);
   };
 
   const handleAnswer = (type) => {

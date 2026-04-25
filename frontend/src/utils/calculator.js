@@ -4,7 +4,8 @@
 export const calculateScores = (answers) => {
   const scores = { E: 0, B: 0, C: 0, V: 0 };
 
-  answers.forEach(type => {
+  answers.forEach(typeOrObj => {
+    const type = typeof typeOrObj === 'object' ? typeOrObj.type : typeOrObj;
     if (scores.hasOwnProperty(type)) {
       scores[type]++;
     }
@@ -13,7 +14,7 @@ export const calculateScores = (answers) => {
   return scores;
 };
 
-// 根据维度得分匹配自我侧写
+// 根据维度得分匹配自我侧写（9种）
 export const matchProfile = (scores) => {
   const { E, B, C, V } = scores;
 
@@ -22,22 +23,28 @@ export const matchProfile = (scores) => {
 
   // 边界情况：得分都很低
   if (maxScore <= 2) {
-    return "intellectualIdealist"; // 默认
+    return "gentleGuardian"; // 默认
   }
 
-  // 匹配规则（根据 PRD）
-  if (C >= 4 && B >= 4) {
-    return "deepExplorer"; // 深度灵魂探索者: C高, B高
-  } else if (B >= 4 && V >= 4) {
-    return "gentleGuardian"; // 温柔秩序守护者: B高, V高
-  } else if (E >= 4 && B <= 2) {
-    return "freeWind"; // 自由的风向探测器: E高, B低
-  } else if (C <= 3 && E >= 4) {
-    return "warmBeacon"; // 温暖的共情灯塔: C低, E高
-  } else if (C >= 4 && V >= 4) {
+  // 匹配规则 - 提高阈值避免趋同
+  if (E >= 5 && V >= 4) {
+    return "romanticAesthetic"; // 浪漫唯美主义者: E高, V高
+  } else if (C >= 5 && V >= 4) {
     return "intellectualIdealist"; // 智性恋理想主义者: C高, V高
+  } else if (C >= 5 && B >= 5) {
+    return "deepExplorer"; // 深度灵魂探索者: C高, B高
+  } else if (E >= 5 && B <= 2 && C <= 3) {
+    return "emotionalDependent"; // 情感依赖型: E高, B低, C低
+  } else if (E >= 5 && B <= 2) {
+    return "freeWind"; // 自由的风向探测器: E高, B低
+  } else if (B >= 5 && V >= 4 && C <= 3) {
+    return "gentleGuardian"; // 温柔秩序守护者: B高, V高, C低
+  } else if (B >= 5 && C >= 4) {
+    return "pragmaticLife"; // 务实生活家: B极高, C高
   } else if (B >= 5) {
     return "introvertedObserver"; // 内敛边界观察员: B极高
+  } else if (C <= 3 && E >= 4) {
+    return "warmBeacon"; // 温暖的共情灯塔: C低, E高
   }
 
   // 次优匹配
@@ -52,20 +59,44 @@ export const matchProfile = (scores) => {
   }
 };
 
-// 根据内核维度得分提取理想型
+// 根据内核维度得分提取理想型（9种）
 export const extractIdealType = (scores) => {
-  const { C, V } = scores;
+  const { E, B, C, V } = scores;
 
-  // C 维度高 + V 维度高 = 智性恋
-  if (C >= 4 && V >= 4) {
-    return "nerd";
+  // 独立事业型
+  if (C >= 5 && E >= 4) {
+    return "independentCareer";
   }
-  // B 维度高 + V 维度高 = 年上感
-  else if (scores.B >= 4 && V >= 3) {
+  // 精神导师型
+  else if (B >= 4 && C >= 4) {
+    return "spiritualMentor";
+  }
+  // 自由探索型
+  else if (E >= 5 && V >= 3) {
+    return "freeExplorer";
+  }
+  // 浪漫艺术家型
+  else if (E >= 4 && V >= 5) {
+    return "romanticArtist";
+  }
+  // 阳光活力型
+  else if (E >= 5 && B <= 2) {
+    return "sunnyEnergetic";
+  }
+  // 年上感
+  else if (B >= 4 && V >= 3) {
     return "nianshang";
   }
-  // B 维度极高 = 清冷感
-  else if (scores.B >= 5) {
+  // 温柔陪伴型
+  else if (B >= 4 && E <= 3) {
+    return "gentleCompanion";
+  }
+  // 智性恋
+  else if (C >= 4) {
+    return "nerd";
+  }
+  // 清冷感
+  else if (B >= 5) {
     return "qingleng";
   }
   // 默认返回 nerd

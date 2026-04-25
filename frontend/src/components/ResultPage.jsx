@@ -1,14 +1,41 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Compass, Sparkles, Star, Ban, Share2, Info } from 'lucide-react';
+import { Compass, Sparkles, Star, Ban, Info } from 'lucide-react';
 import Modal from './Modal';
 import { profiles, profileLabels, idealTypes } from '../data/copy';
 import { getActionPlan } from '../data/actionPlan';
 
-const ResultPage = ({ result, onBack }) => {
+// MBTI 理想型匹配映射
+const mbtiCompatibility = {
+  'ENFJ': ['INFP', 'ENFP', 'ISFJ', 'ESFJ'],
+  'ENFP': ['ENFJ', 'INFP', 'INTJ', 'INFJ'],
+  'ENTJ': ['INTP', 'ENTP', 'INFP', 'ENFP'],
+  'ENTP': ['INTJ', 'INFJ', 'ENFJ', 'ENTJ'],
+  'ESFJ': ['ISFP', 'ESFP', 'ENFJ', 'INFP'],
+  'ESFP': ['ISFJ', 'ESFJ', 'INTJ', 'INFJ'],
+  'INFJ': ['ENFP', 'INFP', 'ENTP', 'INTP'],
+  'INFP': ['ENFJ', 'INFJ', 'ENFP', 'INTP'],
+  'INTJ': ['ENTP', 'ENFP', 'INTP', 'INFP'],
+  'INTP': ['ENTJ', 'INTJ', 'ENFJ', 'INFJ'],
+  'ISFJ': ['ESFP', 'ISFP', 'ESFJ', 'ENFJ'],
+  'ISFP': ['ESFJ', 'ISFJ', 'ENTJ', 'INTJ'],
+};
+
+const getRecommendedMBTI = (userMBTI) => {
+  const normalizedMBTI = userMBTI.toUpperCase();
+  if (mbtiCompatibility[normalizedMBTI]) {
+    return mbtiCompatibility[normalizedMBTI][0];
+  }
+  return 'INFJ'; // 默认推荐
+};
+
+const ResultPage = ({ result, userInfo: propUserInfo, onBack }) => {
   const [showModal, setShowModal] = useState(null);
   const [typedText, setTypedText] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
   const resultRef = useRef(null);
+
+  // 从 props 或 localStorage 获取用户信息
+  const storedUserInfo = JSON.parse(localStorage.getItem('echo_love_userinfo') || '{}');
+  const userInfo = propUserInfo?.nickname ? propUserInfo : storedUserInfo;
 
   const { profileKey, idealType } = result;
   const profile = profiles[profileKey];
@@ -16,7 +43,11 @@ const ResultPage = ({ result, onBack }) => {
   const actionPlan = getActionPlan(idealType);
   const idealInfo = idealTypes[idealType];
 
-  // 打字机效果
+  const userNickname = userInfo?.nickname || '你';
+  const userMBTI = userInfo?.mbti || '';
+  const recommendedMBTI = getRecommendedMBTI(userMBTI);
+
+  // 打字机效果 - 保持原文"你"
   useEffect(() => {
     const text = profile.description;
     let index = 0;
@@ -31,98 +62,33 @@ const ResultPage = ({ result, onBack }) => {
     return () => clearInterval(timer);
   }, [profile.description]);
 
-  // 保存报告
-  const handleSave = async () => {
-    setIsGenerating(true);
-
-    try {
-      const element = resultRef.current;
-      if (!element) {
-        alert('页面加载中，请稍后重试');
-        setIsGenerating(false);
-        return;
-      }
-
-      // 创建一个临时的 clone 来避免样式问题
-      const clone = element.cloneNode(true);
-      clone.style.position = 'absolute';
-      clone.style.left = '-9999px';
-      clone.style.width = '375px';
-      clone.style.padding = '24px';
-      clone.style.backgroundColor = '#FDF9F3';
-      document.body.appendChild(clone);
-
-      const html2canvasModule = await import('html2canvas');
-      const html2canvas = html2canvasModule.default;
-
-      const canvas = await html2canvas(clone, {
-        scale: 2,
-        backgroundColor: '#FDF9F3',
-        useCORS: true,
-        allowTaint: true,
-        logging: false
-      });
-
-      // 清理 clone
-      document.body.removeChild(clone);
-
-      // 转换为图片并下载
-      const dataUrl = canvas.toDataURL('image/png');
-      const link = document.createElement('a');
-      link.href = dataUrl;
-      link.download = `echo-love-report-${Date.now()}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      alert('报告已保存到相册！');
-    } catch (error) {
-      console.error('生成图片失败:', error);
-      alert('保存失败，请重试: ' + error.message);
-    }
-
-    setIsGenerating(false);
-  };
-
-  // 模态框内容
+  // 模态框内容 - 显示具体要素详解
   const getModalContent = (type) => {
     switch (type) {
       case 'must':
         return {
-          title: 'Must-have 详解',
+          title: `${idealInfo.mustHave?.label || labels.must} 详解`,
           content: (
             <div className="space-y-3">
-              <p className="text-sm text-slate-600">{idealInfo.description}</p>
-              <div className="pt-3 border-t border-slate-200">
-                <span className="text-xs font-bold text-slate-400 block mb-2">刚需要素</span>
-                <p className="text-sm font-medium text-emerald-600">{idealInfo.mustHave}</p>
-              </div>
+              <p className="text-sm text-slate-600">{idealInfo.mustHave?.description || idealInfo.description}</p>
             </div>
           )
         };
       case 'nice':
         return {
-          title: 'Nice-to-have 详解',
+          title: `${idealInfo.niceToHave?.label || labels.nice} 详解`,
           content: (
             <div className="space-y-3">
-              <p className="text-sm text-slate-600">加分项是建立在你已经满足刚需要素的基础上，这些特质可以让关系更加丰富多彩。</p>
-              <div className="pt-3 border-t border-slate-200">
-                <span className="text-xs font-bold text-slate-400 block mb-2">加分要素</span>
-                <p className="text-sm font-medium text-sky-600">{idealInfo.niceToHave}</p>
-              </div>
+              <p className="text-sm text-slate-600">{idealInfo.niceToHave?.description}</p>
             </div>
           )
         };
       case 'red':
         return {
-          title: 'Red-flags 详解',
+          title: `${idealInfo.redFlags?.label || labels.red} 详解`,
           content: (
             <div className="space-y-3">
-              <p className="text-sm text-slate-600">红线是你在关系中绝对不能接受的底线，一旦出现这些信号，需要谨慎考虑。</p>
-              <div className="pt-3 border-t border-slate-200">
-                <span className="text-xs font-bold text-slate-400 block mb-2">危险信号</span>
-                <p className="text-sm font-medium text-red-500">{idealInfo.redFlags}</p>
-              </div>
+              <p className="text-sm text-slate-600">{idealInfo.redFlags?.description}</p>
             </div>
           )
         };
@@ -135,7 +101,7 @@ const ResultPage = ({ result, onBack }) => {
     <div className="px-6 pb-12">
       <div ref={resultRef} style={{ backgroundColor: '#FDF9F3', padding: '24px', margin: '-24px' }}>
         <div className="text-center py-8">
-          <h1 className="text-2xl font-serif font-bold text-slate-800">理想型画像报告</h1>
+          <h1 className="text-2xl font-serif font-bold text-slate-800">{userNickname}的理想型画像报告</h1>
           <p className="text-xs text-slate-400 mt-2 tracking-widest uppercase">Echo Love Result</p>
         </div>
 
@@ -144,6 +110,23 @@ const ResultPage = ({ result, onBack }) => {
           <span className="text-[10px] font-bold text-slate-300 tracking-tighter block mb-1 uppercase">
             画像拆解 / ANALYSIS
           </span>
+
+          {/* 用户MBTI信息 */}
+          {userMBTI && (
+            <div className="bg-gradient-to-r from-[#7C9A92]/10 to-[#7C9A92]/5 rounded-2xl p-4 mb-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <span className="text-[10px] text-slate-400 block">你的MBTI</span>
+                  <span className="text-lg font-bold text-[#7C9A92]">{userMBTI}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] text-slate-400 block">理想型MBTI</span>
+                  <span className="text-lg font-bold text-rose-400">{recommendedMBTI}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           <span className="text-[10px] text-slate-400 block mb-4">
             点击标签查看详情
           </span>
@@ -161,7 +144,7 @@ const ResultPage = ({ result, onBack }) => {
                   Must-have (刚需)
                   <Info size={12} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </h4>
-                <p className="text-xs text-slate-500">{labels.must}</p>
+                <p className="text-xs text-slate-500">{idealInfo.mustHave?.label || labels.must}</p>
               </div>
             </div>
 
@@ -177,7 +160,7 @@ const ResultPage = ({ result, onBack }) => {
                   Nice-to-have (加分项)
                   <Info size={12} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </h4>
-                <p className="text-xs text-slate-500">{labels.nice}</p>
+                <p className="text-xs text-slate-500">{idealInfo.niceToHave?.label || labels.nice}</p>
               </div>
             </div>
 
@@ -193,7 +176,7 @@ const ResultPage = ({ result, onBack }) => {
                   Red-flags (红线)
                   <Info size={12} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </h4>
-                <p className="text-xs text-slate-500">{labels.red}</p>
+                <p className="text-xs text-slate-500">{idealInfo.redFlags?.label || labels.red}</p>
               </div>
             </div>
           </div>
@@ -232,19 +215,9 @@ const ResultPage = ({ result, onBack }) => {
       {/* 返回按钮 */}
       <button
         onClick={onBack}
-        className="w-full py-3 mb-4 text-slate-500 text-sm font-medium"
+        className="w-full py-4 bg-slate-800 text-white rounded-full font-bold text-sm shadow-xl flex items-center justify-center gap-2"
       >
         重新测试
-      </button>
-
-      {/* 保存报告按钮 */}
-      <button
-        onClick={handleSave}
-        disabled={isGenerating}
-        className="w-full py-4 bg-slate-800 text-white rounded-full font-bold text-sm shadow-xl flex items-center justify-center gap-2 disabled:opacity-50"
-      >
-        <Share2 size={16} />
-        {isGenerating ? '生成中...' : '保存报告'}
       </button>
 
       {/* 模态框 */}

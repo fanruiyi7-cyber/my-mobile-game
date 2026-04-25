@@ -1,34 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, ChevronRight, ArrowLeft, ChevronLeft, Key } from 'lucide-react';
+import { Heart, ChevronRight, ArrowLeft, ChevronLeft } from 'lucide-react';
 import ResultPage from './components/ResultPage';
 import { questions } from './data/questions';
 import { calculateResult } from './utils/calculator';
 import { saveAnswers, clearAllData } from './utils/storage';
 
-// 有效的邀请码列表
-const VALID_CODES = [
-  'ECHO2024',
-  'LOVE123',
-  'TEST001',
-  'VIP2024',
-  'WELCOME',
-  'SPRING2024',
-];
-
 function App() {
-  const [step, setStep] = useState('landing'); // landing, invite, quiz, result
+  const [step, setStep] = useState('landing'); // landing, profile, quiz, result
   const [currentQ, setCurrentQ] = useState(0);
   const [answers, setAnswers] = useState([]);
   const [result, setResult] = useState(null);
-  const [inviteCode, setInviteCode] = useState('');
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [error, setError] = useState('');
+  const [userInfo, setUserInfo] = useState({ nickname: '', mbti: '' });
+  const [otherInput, setOtherInput] = useState(''); // 其他选项的输入
 
-  // 检查是否已验证
+  // 检查是否有已保存的用户信息
   useEffect(() => {
-    const verified = localStorage.getItem('echo_love_verified');
-    if (verified === 'true') {
+    // 清除所有邀请码相关的旧数据
+    localStorage.removeItem('echo_love_verified');
+    localStorage.removeItem('echo_love_code');
+    localStorage.removeItem('echo_love_used_codes');
+
+    const userInfo = JSON.parse(localStorage.getItem('echo_love_userinfo') || '{}');
+
+    // 如果有用户信息，直接进quiz；否则进landing
+    if (userInfo.nickname) {
+      setUserInfo(userInfo);
       setStep('quiz');
+    } else {
+      setStep('landing');
     }
   }, []);
 
@@ -38,64 +37,22 @@ function App() {
   };
 
   const handleStart = () => {
-    // 检查是否已验证
-    const verified = localStorage.getItem('echo_love_verified');
-    if (verified === 'true') {
-      setStep('quiz');
-    } else {
-      setStep('invite');
-    }
+    setStep('profile');
   };
 
-  // 验证邀请码（调用后端API）
-  const handleVerifyCode = async () => {
-    if (!inviteCode.trim()) {
-      setError('请输入邀请码');
-      return;
-    }
+  const handleAnswer = (typeOrObj) => {
+    const type = typeof typeOrObj === 'object' ? typeOrObj.type : typeOrObj;
+    const otherText = typeof typeOrObj === 'object' ? typeOrObj.text : null;
 
-    setIsVerifying(true);
-    setError('');
-
-    const code = inviteCode.toUpperCase().trim();
-
-    try {
-      const response = await fetch('/api/verify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ code }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || '验证失败');
-        setIsVerifying(false);
-        return;
-      }
-
-      // 验证成功，保存到 localStorage
-      localStorage.setItem('echo_love_verified', 'true');
-
-      // 开始测试
-      setCurrentQ(0);
-      setAnswers([]);
-      setResult(null);
-      setStep('quiz');
-    } catch (err) {
-      setError('网络错误，请稍后重试');
-      console.error(err);
-    } finally {
-      setIsVerifying(false);
-    }
-  };
-
-  const handleAnswer = (type) => {
     const newAnswers = [...answers];
-    newAnswers[currentQ] = type;
+    // 如果是其他选项，保存对象形式
+    if (type === 'other' && otherText) {
+      newAnswers[currentQ] = { type: 'other', text: otherText };
+    } else {
+      newAnswers[currentQ] = type;
+    }
     setAnswers(newAnswers);
+    setOtherInput(''); // 清空输入
     saveAnswers(newAnswers);
 
     if (currentQ < questions.length - 1) {
@@ -121,55 +78,17 @@ function App() {
 
   const handleBack = () => {
     clearAllData();
+    localStorage.removeItem('echo_love_userinfo');
     setStep('landing');
     setCurrentQ(0);
     setAnswers([]);
     setResult(null);
-    setInviteCode('');
-    setError('');
+    setUserInfo({ nickname: '', mbti: '' });
   };
 
   return (
     <div className="min-h-screen w-full max-w-md mx-auto shadow-2xl overflow-hidden flex flex-col" style={{ backgroundColor: colors.bg }}>
-      {/* 邀请码输入页面 */}
-      {step === 'invite' && (
-        <div className="flex-1 flex flex-col items-center justify-center p-10 text-center animate-in fade-in duration-500">
-          <div className="w-16 h-16 bg-[#7C9A92] rounded-full flex items-center justify-center text-white mb-6 shadow-inner">
-            <Key size={28} />
-          </div>
-          <h2 className="font-serif text-xl font-bold text-slate-800 mb-2">邀请码</h2>
-          <p className="text-xs text-slate-400 mb-8">请输入邀请码进入</p>
-
-          <input
-            type="text"
-            value={inviteCode}
-            onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-            placeholder="请输入邀请码"
-            className="w-full px-4 py-3 mb-4 bg-white border border-slate-200 rounded-xl text-center text-sm focus:outline-none focus:border-[#7C9A92]"
-            disabled={isVerifying}
-          />
-
-          {error && (
-            <p className="text-red-500 text-xs mb-4">{error}</p>
-          )}
-
-          <button
-            onClick={handleVerifyCode}
-            disabled={isVerifying}
-            className="w-full py-3 bg-[#7C9A92] text-white rounded-full font-bold text-sm shadow-lg hover:scale-105 transition-transform disabled:opacity-50"
-          >
-            {isVerifying ? '验证中...' : '确认'}
-          </button>
-
-          <button
-            onClick={handleBack}
-            className="mt-4 text-slate-400 text-xs"
-          >
-            返回
-          </button>
-        </div>
-      )}
-
+      {/* 登录页面 */}
       {step === 'landing' && (
         <div className="flex-1 flex flex-col items-center justify-center p-10 text-center animate-in fade-in zoom-in duration-1000">
           <div className="w-20 h-20 bg-[#7C9A92] rounded-full flex items-center justify-center text-white mb-8 shadow-inner animate-pulse">
@@ -185,26 +104,95 @@ function App() {
           >
             开启对话
           </button>
+          <p className="mt-4 text-xs text-slate-400">
+            基于 MBTI + 20道心理测评题（能量获取方式、行为模式、内在动机、关系愿景四个维度）
+          </p>
         </div>
       )}
 
+      {/* 用户信息填写页面 */}
+      {step === 'profile' && (
+        <div className="flex-1 flex flex-col items-center justify-center p-10 text-center animate-in fade-in duration-500">
+          <div className="w-16 h-16 bg-[#7C9A92] rounded-full flex items-center justify-center text-white mb-6 shadow-inner">
+            <Heart size={28} fill="white" />
+          </div>
+          <h2 className="font-serif text-xl font-bold text-slate-800 mb-2">认识一下</h2>
+          <p className="text-xs text-slate-400 mb-8">告诉我们你的基本信息</p>
+
+          <input
+            type="text"
+            value={userInfo.nickname}
+            onChange={(e) => setUserInfo({ ...userInfo, nickname: e.target.value })}
+            placeholder="你的昵称"
+            className="w-full px-4 py-3 mb-4 bg-white border border-slate-200 rounded-xl text-center text-sm focus:outline-none focus:border-[#7C9A92]"
+            maxLength={10}
+          />
+
+          <input
+            type="text"
+            value={userInfo.mbti}
+            onChange={(e) => setUserInfo({ ...userInfo, mbti: e.target.value.toUpperCase() })}
+            placeholder="你的MBTI (如: INFP)"
+            className="w-full px-4 py-3 mb-6 bg-white border border-slate-200 rounded-xl text-center text-sm focus:outline-none focus:border-[#7C9A92]"
+            maxLength={4}
+          />
+
+          <button
+            onClick={() => {
+              if (!userInfo.nickname.trim()) {
+                alert('请输入昵称');
+                return;
+              }
+              if (!userInfo.mbti.trim()) {
+                alert('请输入MBTI');
+                return;
+              }
+              // 保存用户信息
+              localStorage.setItem('echo_love_userinfo', JSON.stringify(userInfo));
+              setCurrentQ(0);
+              setAnswers([]);
+              setResult(null);
+              setStep('quiz');
+            }}
+            className="w-full py-3 bg-[#7C9A92] text-white rounded-full font-bold text-sm shadow-lg hover:scale-105 transition-transform"
+          >
+            开始测试
+          </button>
+
+          <button
+            onClick={handleBack}
+            className="mt-4 text-slate-400 text-xs"
+          >
+            返回
+          </button>
+        </div>
+      )}
+
+      {/* 测试页面 */}
       {step === 'quiz' && (
         <div className="flex-1 p-6 flex flex-col animate-in slide-in-from-right duration-500">
           <div className="flex justify-between items-center mb-8">
-            <button onClick={handleBack}><ArrowLeft size={20} className="text-slate-400" /></button>
-            <span className="text-[10px] font-bold text-slate-300">QUESTION {currentQ + 1}/{questions.length}</span>
+            {/* 左边：上一题 */}
             <div className="flex gap-3">
               {currentQ > 0 && (
-                <button onClick={handlePrev}>
-                  <ChevronLeft size={20} className="text-slate-400" />
-                </button>
-              )}
-              {currentQ < questions.length - 1 && answers[currentQ] && (
-                <button onClick={handleNext}>
-                  <ChevronRight size={20} className="text-[#7C9A92]" />
+                <button
+                  onClick={handlePrev}
+                  className="flex items-center gap-1 text-slate-500 hover:text-[#7C9A92] text-sm"
+                >
+                  <ChevronLeft size={20} />
+                  <span>上一题</span>
                 </button>
               )}
             </div>
+            <span className="text-[10px] font-bold text-slate-300">QUESTION {currentQ + 1}/{questions.length}</span>
+            {/* 右边：退出 */}
+            <button
+              onClick={handleBack}
+              className="flex items-center gap-1 text-slate-400 hover:text-slate-600 text-sm"
+            >
+              <span>退出</span>
+              <ArrowLeft size={18} className="rotate-180" />
+            </button>
           </div>
 
           <div className="w-full bg-slate-100 h-1 rounded-full mb-10">
@@ -220,29 +208,61 @@ function App() {
 
           <div className="space-y-3">
             {questions[currentQ].options.map((opt, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleAnswer(opt.type)}
-                className={`w-full p-4 border rounded-2xl text-left text-sm flex justify-between items-center group transition-all ${
-                  answers[currentQ] === opt.type
-                    ? 'bg-[#7C9A92]/10 border-[#7C9A92] text-slate-800'
-                    : 'bg-white border-slate-100 text-slate-600 hover:border-[#7C9A92] hover:bg-[#7C9A92]/5'
-                }`}
-              >
-                {opt.label}
-                {answers[currentQ] === opt.type ? (
-                  <span className="text-[#7C9A92] text-xs font-bold">已选</span>
-                ) : (
-                  <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 text-[#7C9A92]" />
+              <div key={idx}>
+                <button
+                  onClick={() => {
+                    if (opt.type === 'other') {
+                      // 选择其他时，显示输入框
+                      setOtherInput(answers[currentQ]?.other || '');
+                    } else {
+                      handleAnswer(opt.type);
+                    }
+                  }}
+                  className={`w-full p-4 border rounded-2xl text-left text-sm flex justify-between items-center group transition-all ${
+                    answers[currentQ] === opt.type || answers[currentQ]?.type === opt.type
+                      ? 'bg-[#7C9A92]/10 border-[#7C9A92] text-slate-800'
+                      : 'bg-white border-slate-100 text-slate-600 hover:border-[#7C9A92] hover:bg-[#7C9A92]/5'
+                  }`}
+                >
+                  {opt.label}
+                  {(answers[currentQ] === opt.type || answers[currentQ]?.type === opt.type) ? (
+                    <span className="text-[#7C9A92] text-xs font-bold">已选</span>
+                  ) : (
+                    <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 text-[#7C9A92]" />
+                  )}
+                </button>
+                {/* 其他选项的输入框 */}
+                {opt.type === 'other' && (answers[currentQ] === 'other' || answers[currentQ]?.type === 'other') && (
+                  <div className="mt-2 p-3 bg-slate-50 rounded-xl">
+                    <input
+                      type="text"
+                      value={otherInput}
+                      onChange={(e) => setOtherInput(e.target.value)}
+                      placeholder="请输入你的答案..."
+                      className="w-full bg-transparent text-sm focus:outline-none"
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => {
+                        if (otherInput.trim()) {
+                          handleAnswer({ type: 'other', text: otherInput.trim() });
+                        }
+                      }}
+                      className="mt-2 w-full py-2 bg-[#7C9A92] text-white rounded-lg text-sm"
+                    >
+                      确认
+                    </button>
+                  </div>
                 )}
-              </button>
+              </div>
             ))}
           </div>
         </div>
       )}
 
+      {/* 结果页面 */}
       {step === 'result' && result && (
-        <ResultPage result={result} onBack={handleBack} />
+        <ResultPage result={result} userInfo={userInfo} onBack={handleBack} />
       )}
     </div>
   );

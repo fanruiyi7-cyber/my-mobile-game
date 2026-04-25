@@ -1,6 +1,6 @@
 redirectsOrigin = "config"
 plugins = []
-functionsDirectory = "C:\\Users\\ASUS\\Desktop\\Claude Code Test\\echo love\\api"
+functionsDirectory = "C:\\Users\\ASUS\\Desktop\\Claude Code Test\\echo love\\frontend\\api"
 functionsDirectoryOrigin = "config-v1"
 headers = []
 
@@ -14,11 +14,12 @@ port = 8888.0
 [functions."*"]
 
 [build]
-publish = "C:\\Users\\ASUS\\Desktop\\Claude Code Test\\echo love\\frontend\\dist"
+publish = "C:\\Users\\ASUS\\Desktop\\Claude Code Test\\echo love\\frontend\\frontend\\dist"
 publishOrigin = "config"
 commandOrigin = "config"
+base = "C:\\Users\\ASUS\\Desktop\\Claude Code Test\\echo love\\frontend"
 command = "cd frontend && npm install && npm run build"
-functions = "C:\\Users\\ASUS\\Desktop\\Claude Code Test\\echo love\\api"
+functions = "C:\\Users\\ASUS\\Desktop\\Claude Code Test\\echo love\\frontend\\api"
 
 [build.environment]
 

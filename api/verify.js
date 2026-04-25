@@ -1,37 +1,157 @@
-// 邀请码验证 API
+// 邀请码验证 API (Netlify Functions)
 // 存储已使用的邀请码
 const usedCodes = new Set();
 
-// 有效的邀请码列表（可以添加更多）
+// 有效的邀请码列表
 const validCodes = new Set([
   'ECHO2024',
   'LOVE123',
   'TEST001',
   'VIP2024',
-  // 在这里添加更多邀请码
+  'WELCOME',
+  'SPRING2024',
+  'SUMMER2024',
+  'AUTUMN2024',
+  'WINTER2024',
+  'FRIEND001',
+  'FRIEND002',
+  'FRIEND003',
+  'FRIEND004',
+  'FRIEND005',
+  'NEWYEAR',
+  'VALENTINE',
+  'MATCH2024',
+  'HEART001',
+  'HEART002',
+  'HEART003',
+  'DREAM001',
+  'DREAM002',
+  'LOVE2024',
+  'ECHO001',
+  'ECHO002',
+  'START001',
+  'START002',
+  'HOPE001',
+  'HOPE002',
+  'FOREVER',
+  'TOMORROW',
+  'MAGIC001',
+  'MAGIC002',
+  'STORY001',
+  'STORY002',
+  'CUTE001',
+  'CUTE002',
+  'SWEET001',
+  'SWEET002',
+  'KIND001',
+  'KIND002',
+  'WARM001',
+  'WARM002',
+  // 新增50个邀请码
+  'BLUE001',
+  'BLUE002',
+  'BLUE003',
+  'BLUE004',
+  'BLUE005',
+  'PINK001',
+  'PINK002',
+  'PINK003',
+  'PINK004',
+  'PINK005',
+  'STAR001',
+  'STAR002',
+  'STAR003',
+  'STAR004',
+  'STAR005',
+  'MOON001',
+  'MOON002',
+  'MOON003',
+  'MOON004',
+  'MOON005',
+  'SUN001',
+  'SUN002',
+  'SUN003',
+  'SUN004',
+  'SUN005',
+  'CLOUD001',
+  'CLOUD002',
+  'CLOUD003',
+  'CLOUD004',
+  'CLOUD005',
+  'RAIN001',
+  'RAIN002',
+  'RAIN003',
+  'RAIN004',
+  'RAIN005',
+  'WIND001',
+  'WIND002',
+  'WIND003',
+  'WIND004',
+  'WIND005',
+  'SKY001',
+  'SKY002',
+  'SKY003',
+  'SKY004',
+  'SKY005',
+  'SEA001',
+  'SEA002',
+  'SEA003',
+  'SEA004',
+  'SEA005',
+  'WAVE001',
+  'WAVE002',
+  'WAVE003',
+  'WAVE004',
+  'WAVE005',
+  'GOLD001',
+  'GOLD002',
+  'GOLD003',
+  'GOLD004',
+  'GOLD005',
+  'SILVER001',
+  'SILVER002',
+  'SILVER003',
+  'SILVER004',
+  'SILVER005',
 ]);
 
-export default async function handler(req, res) {
+exports.handler = async function(event, context) {
   // 设置 CORS 头
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Content-Type': 'application/json'
+  };
 
   // 处理预检请求
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers,
+      body: ''
+    };
   }
 
   // 只允许 POST 请求
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  if (event.httpMethod !== 'POST') {
+    return {
+      statusCode: 405,
+      headers,
+      body: JSON.stringify({ error: 'Method not allowed' })
+    };
   }
 
   try {
-    const { code } = req.body;
+    const body = JSON.parse(event.body || '{}');
+    const { code } = body;
 
     if (!code) {
-      return res.status(400).json({ error: '请输入邀请码' });
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: '请输入邀请码' })
+      };
     }
 
     // 检查邀请码格式
@@ -39,24 +159,40 @@ export default async function handler(req, res) {
 
     // 检查是否已使用
     if (usedCodes.has(normalizedCode)) {
-      return res.status(400).json({ error: '该邀请码已被使用' });
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: '该邀请码已被使用' })
+      };
     }
 
     // 检查是否有效
     if (!validCodes.has(normalizedCode)) {
-      return res.status(400).json({ error: '邀请码无效' });
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: '邀请码无效' })
+      };
     }
 
     // 标记为已使用
     usedCodes.add(normalizedCode);
 
-    return res.status(200).json({
-      success: true,
-      message: '验证成功'
-    });
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        success: true,
+        message: '验证成功'
+      })
+    };
 
   } catch (error) {
     console.error('验证错误:', error);
-    return res.status(500).json({ error: '服务器错误，请稍后重试' });
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ error: '服务器错误，请稍后重试' })
+    };
   }
-}
+};
